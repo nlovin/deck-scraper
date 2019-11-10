@@ -26,12 +26,64 @@ pg %>%
   html_node("td a") %>% 
   html_attr("href")
 
-# gettning user and deck ids
+# getting user and deck ids
 deck_urls[-1] %>% 
   str_extract("decks/\\d{4,9}") %>% 
-  str_remove("decks/")
+  str_remove("decks/") %>% 
+  enframe() %>% 
+  select(-1) %>% 
+  rename(user_id = 1)-> user_id
+
+deck_urls[-1] %>% 
+  str_extract("\\d{4,9}-") %>% 
+  str_remove("-") %>% 
+  enframe() %>% 
+  select(-1) %>% 
+  rename(deck_id = 1) -> deck_id
+
+konrad <- bind_cols(konrad, deck_id)
+konrad <- bind_cols(konrad, user_id)
+
+
+list <- list()
+pb <- txtProgressBar(0, nrow(konrad), style = 3)
+for (i in 1:nrow(konrad)) {
+  
+  tmp <- read_html(paste0("https://deckstats.net/api.php?action=get_deck&id_type=saved&owner_id=", konrad$user_id[i], "&id=", konrad$deck_id[i], "&response_type=json")) %>% 
+    html_text()
+  
+  list <- c(list, list(tmp))
+  
+  names(list)[i] <- paste0("deck_", i)
+  
+  Sys.sleep(sample(seq(1,3,0.5), 1))
+  setTxtProgressBar(pb, i)
+}
+
+
+
+# list to json list
+json_list <- map(list, fromJSON)
+
+test <- json_list[[1]][["sections"]][["cards"]][[1]][["name"]] %>% 
+  as_tibble() %>% 
+  select(1:2)
+
+tb_list <- map(json_list, as_tibble)
+
+
+
+
+
+
+
+
+
+
 # reading api jsons
 # use user and deck codes
-read_html("https://deckstats.net/api.php?action=get_deck&id_type=saved&owner_id=24472&id=1126678&response_type=json") %>% 
+test <- read_html("https://deckstats.net/api.php?action=get_deck&id_type=saved&owner_id=24472&id=1126678&response_type=json") %>% 
   html_text()
 
+tmp %>% 
+  html_text()
