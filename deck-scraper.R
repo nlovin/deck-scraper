@@ -65,7 +65,16 @@ for (i in 1:nrow(konrad)) {
 # list to json list
 json_list <- map(list, fromJSON)
 
-test <- json_list[[1]][["sections"]][["cards"]][[1]][["name"]] %>% 
+# Convert each list to a data.table
+
+tb_list <- map(json_list, as.data.table)
+
+dt <- rbindlist(tb_list, fill = TRUE)
+
+dt <- rbindlist(dt_list, fill = TRUE)
+rbind_list(json_list)
+
+test <- json_list[["deck_1"]][["sections"]][["cards"]][[1]] %>% 
   as_tibble() %>% 
   select(1:2)
 
