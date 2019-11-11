@@ -6,7 +6,8 @@ path <- '//*[@id="deck_search_results"]/div/div[2]/table' # table path
 # table info, no urls
 konrad <- read_html(url) %>% 
   html_node(xpath = path) %>% 
-  html_table()
+  html_table() %>% 
+  select(-1)
 
 pg <- read_html(url)
 # deck search urls
@@ -15,34 +16,23 @@ pg %>%
   html_nodes("tr") %>% 
   html_node("a") %>% # NODE
   html_attr("href") -> deck_urls
-# deck search urls w/ user URLs
-pg %>% 
-  html_nodes("table") %>% 
-  html_nodes("tr") %>% 
-  html_nodes("a") %>% # NODES
-  html_attr("href")
-# just gets first url
-pg %>% 
-  html_node("td a") %>% 
-  html_attr("href")
 
-# getting user and deck ids
-deck_urls[-1] %>% 
-  str_extract("decks/\\d{4,9}") %>% 
-  str_remove("decks/") %>% 
-  enframe() %>% 
-  select(-1) %>% 
-  rename(user_id = 1)-> user_id
 
-deck_urls[-1] %>% 
-  str_extract("\\d{4,9}-") %>% 
-  str_remove("-") %>% 
-  enframe() %>% 
-  select(-1) %>% 
-  rename(deck_id = 1) -> deck_id
+tmp = as_tibble(deck_urls[-1])
 
-konrad <- bind_cols(konrad, deck_id)
-konrad <- bind_cols(konrad, user_id)
+konrad <- bind_cols(konrad, tmp) %>% 
+  rename(urls = value)
+
+rm(tmp)
+
+# Extract deck and user ids
+# alt code in notes
+konrad <- konrad %>% 
+  mutate(deck_id = str_extract(urls, "decks/\\d{4,9}"),
+         deck_id = str_remove(deck_id, "decks/"),
+         user_id = str_extract(urls, "\\d{4,9}-"),
+         user_id = str_remove(user_id, "-"))
+  
 
 
 list <- list()
@@ -67,32 +57,26 @@ json_list <- map(list, fromJSON)
 
 # Convert each list to a data.table
 
-tb_list <- map(json_list, as.data.table)
+card_list <- json_list %>% 
+  map(~ bind_rows(.x[["sections"]][["cards"]])) %>% 
+  map(~ select(.x, 1:2)) %>% 
+  map(as_tibble)
 
-dt <- rbindlist(tb_list, fill = TRUE)
-
-dt <- rbindlist(dt_list, fill = TRUE)
-rbind_list(json_list)
-
-test <- json_list[["deck_1"]][["sections"]][["cards"]][[1]] %>% 
-  as_tibble() %>% 
-  select(1:2)
-
-tb_list <- map(json_list, as_tibble)
+# keeps dfs separate
+imap(card_list, ~mutate(.x, deck = .y))
 
 
+deck_lists <- bind_rows(card_list, .id = "deck")
 
+##### Combining All the Data #####
+konrad <- konrad %>% 
+  mutate(deck = paste0("deck_", seq(1,nrow(konrad))))
 
+deck_lists %>% 
+  left_join(konrad, by = 'deck') -> konrad_deck_lists
 
+konrad_deck_lists <- konrad_deck_lists %>% 
+  janitor::clean_names()
 
+write_csv(konrad_deck_lists, path = "data/konrad_deck_lists.csv")
 
-
-
-
-# reading api jsons
-# use user and deck codes
-test <- read_html("https://deckstats.net/api.php?action=get_deck&id_type=saved&owner_id=24472&id=1126678&response_type=json") %>% 
-  html_text()
-
-tmp %>% 
-  html_text()
