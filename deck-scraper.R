@@ -28,12 +28,13 @@ rm(tmp)
 # Extract deck and user ids
 # alt code in notes
 konrad <- konrad %>% 
-  mutate(deck_id = str_extract(urls, "decks/\\d{4,9}"),
-         deck_id = str_remove(deck_id, "decks/"),
-         user_id = str_extract(urls, "\\d{4,9}-"),
-         user_id = str_remove(user_id, "-"))
+  mutate(user_id = str_extract(urls, "decks/\\d{4,9}"),
+         user_id = str_remove(user_id, "decks/"),
+         deck_id = str_extract(urls, "\\d{4,9}-"),
+         deck_id = str_remove(deck_id, "-"))
   
-
+tmp <- read_html("https://deckstats.net/api.php?action=get_deck&id_type=saved&owner_id=126427&id=1461216&response_type=json") %>%
+  html_text()
 
 list <- list()
 pb <- txtProgressBar(0, nrow(konrad), style = 3)
@@ -41,13 +42,13 @@ for (i in 1:nrow(konrad)) {
   
   tmp <- read_html(paste0("https://deckstats.net/api.php?action=get_deck&id_type=saved&owner_id=", konrad$user_id[i], "&id=", konrad$deck_id[i], "&response_type=json")) %>% 
     html_text()
-  
+  #"https://deckstats.net/api.php?action=get_deck&id_type=saved&owner_id=126427&id=1461216&response_type=json"
   list <- c(list, list(tmp))
   
   names(list)[i] <- paste0("deck_", i)
   
   Sys.sleep(sample(seq(1,3,0.5), 1))
-  setTxtProgressBar(pb, i)
+  #setTxtProgressBar(pb, i)
 }
 
 
